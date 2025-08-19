@@ -28,7 +28,6 @@ export function ProjectPage() {
   const [isEditCardOpen, setIsEditCardOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
-  const [selectedBoard, setSelectedBoard] = useState('');
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
   const [cardTitle, setCardTitle] = useState('');
   const [cardDescription, setCardDescription] = useState('');
@@ -70,7 +69,6 @@ export function ProjectPage() {
       setIsCreateCardOpen(false);
       setCardTitle('');
       setCardDescription('');
-      setSelectedBoard('');
     },
   });
 
@@ -122,19 +120,16 @@ export function ProjectPage() {
 
   const handleCreateCard = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBoard) return;
-
-    const board = boards?.boards.find(b => b.id === selectedBoard);
-    if (!board) return;
-
-    const status = board.name === 'A Fazer' ? 'todo' : 
-                  board.name === 'Em Andamento' ? 'in-progress' : 'done';
+    
+    // Find the "A Fazer" board
+    const todoBoard = boards?.boards.find(b => b.name === 'A Fazer');
+    if (!todoBoard) return;
 
     createCardMutation.mutate({
-      boardId: selectedBoard,
+      boardId: todoBoard.id,
       title: cardTitle,
       description: cardDescription || undefined,
-      status,
+      status: 'todo',
     });
   };
 
@@ -249,10 +244,6 @@ export function ProjectPage() {
                 {project.isShared ? 'Ver Token' : 'Compartilhar'}
               </Button>
             )}
-            <Button onClick={() => setIsCreateCardOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Card
-            </Button>
           </div>
         </div>
 
@@ -262,12 +253,25 @@ export function ProjectPage() {
               const status = board.name === 'A Fazer' ? 'todo' : 
                            board.name === 'Em Andamento' ? 'in-progress' : 'done';
               const boardCards = getCardsByStatus(status);
+              const isTodoBoard = board.name === 'A Fazer';
 
               return (
                 <div key={board.id} className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold">{board.name}</h2>
-                    <Badge variant="secondary">{boardCards.length}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{boardCards.length}</Badge>
+                      {isTodoBoard && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => setIsCreateCardOpen(true)}
+                          className="h-8"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Novo Card
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   
                   <Droppable droppableId={status}>
@@ -355,27 +359,10 @@ export function ProjectPage() {
             <DialogHeader>
               <DialogTitle>Criar Novo Card</DialogTitle>
               <DialogDescription>
-                Adicione um novo card ao quadro Kanban.
+                Adicione um novo card ao quadro "A Fazer".
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateCard} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="board">Quadro</Label>
-                <select
-                  id="board"
-                  className="w-full p-2 border rounded-md"
-                  value={selectedBoard}
-                  onChange={(e) => setSelectedBoard(e.target.value)}
-                  required
-                >
-                  <option value="">Selecione um quadro</option>
-                  {boards?.boards.map((board) => (
-                    <option key={board.id} value={board.id}>
-                      {board.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="title">Título</Label>
                 <Input
