@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { Plus, Share2, Users, Activity, Trash2, Edit } from 'lucide-react';
+import { Plus, Share2, Users, Activity, Trash2, Edit, Clock, User } from 'lucide-react';
 import { Header } from '../components/Header';
 import { ProjectMembers } from '../components/ProjectMembers';
 import { ProjectActivity } from '../components/ProjectActivity';
+import { ActivitySidebar } from '../components/ActivitySidebar';
 import { useAuth } from '../contexts/AuthContext';
 import backend from '~backend/client';
 import type { Card as CardType } from '~backend/kanban/cards';
@@ -66,6 +67,7 @@ export function ProjectPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] });
       setIsCreateCardOpen(false);
       setCardTitle('');
       setCardDescription('');
@@ -86,6 +88,7 @@ export function ProjectPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] });
     },
   });
 
@@ -99,6 +102,7 @@ export function ProjectPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cards', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['activity', projectId] });
     },
   });
 
@@ -196,6 +200,43 @@ export function ProjectPage() {
     });
   };
 
+  const getBoardColors = (boardName: string) => {
+    switch (boardName) {
+      case 'A Fazer':
+        return {
+          header: 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800',
+          title: 'text-red-800 dark:text-red-200',
+          badge: 'bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-200',
+          border: 'border-red-300 dark:border-red-700',
+          dragOver: 'border-red-500 bg-red-50 dark:bg-red-900/20'
+        };
+      case 'Em Andamento':
+        return {
+          header: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800',
+          title: 'text-yellow-800 dark:text-yellow-200',
+          badge: 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200',
+          border: 'border-yellow-300 dark:border-yellow-700',
+          dragOver: 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+        };
+      case 'Concluído':
+        return {
+          header: 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800',
+          title: 'text-green-800 dark:text-green-200',
+          badge: 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200',
+          border: 'border-green-300 dark:border-green-700',
+          dragOver: 'border-green-500 bg-green-50 dark:bg-green-900/20'
+        };
+      default:
+        return {
+          header: 'bg-gray-100 dark:bg-gray-900/30 border-gray-200 dark:border-gray-800',
+          title: 'text-gray-800 dark:text-gray-200',
+          badge: 'bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+          border: 'border-gray-300 dark:border-gray-700',
+          dragOver: 'border-gray-500 bg-gray-50 dark:bg-gray-900/20'
+        };
+    }
+  };
+
   if (!project) {
     return (
       <div className="min-h-screen">
@@ -247,111 +288,125 @@ export function ProjectPage() {
           </div>
         </div>
 
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {boards?.boards.map((board) => {
-              const status = board.name === 'A Fazer' ? 'todo' : 
-                           board.name === 'Em Andamento' ? 'in-progress' : 'done';
-              const boardCards = getCardsByStatus(status);
-              const isTodoBoard = board.name === 'A Fazer';
+        <div className="flex gap-6">
+          {/* Kanban Boards */}
+          <div className="flex-1">
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {boards?.boards.map((board) => {
+                  const status = board.name === 'A Fazer' ? 'todo' : 
+                               board.name === 'Em Andamento' ? 'in-progress' : 'done';
+                  const boardCards = getCardsByStatus(status);
+                  const isTodoBoard = board.name === 'A Fazer';
+                  const colors = getBoardColors(board.name);
 
-              return (
-                <div key={board.id} className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-semibold">{board.name}</h2>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{boardCards.length}</Badge>
-                      {isTodoBoard && (
-                        <Button 
-                          size="sm" 
-                          onClick={() => setIsCreateCardOpen(true)}
-                          className="h-8"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Novo Card
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <Droppable droppableId={status}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`min-h-[200px] space-y-3 p-4 rounded-lg border-2 border-dashed transition-colors ${
-                          snapshot.isDraggingOver 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-muted-foreground/25'
-                        }`}
-                      >
-                        {boardCards.map((card, index) => (
-                          <Draggable key={card.id} draggableId={card.id} index={index}>
-                            {(provided, snapshot) => (
-                              <Card
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`cursor-move transition-shadow ${
-                                  snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
-                                }`}
+                  return (
+                    <div key={board.id} className="space-y-4">
+                      <div className={`p-4 rounded-lg border ${colors.header}`}>
+                        <div className="flex items-center justify-between">
+                          <h2 className={`text-lg font-semibold ${colors.title}`}>{board.name}</h2>
+                          <div className="flex items-center gap-2">
+                            <Badge className={colors.badge}>{boardCards.length}</Badge>
+                            {isTodoBoard && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => setIsCreateCardOpen(true)}
+                                className="h-8"
                               >
-                                <CardHeader className="pb-2">
-                                  <div className="flex items-start justify-between">
-                                    <CardTitle className="text-sm font-medium">
-                                      {card.title}
-                                    </CardTitle>
-                                    <div className="flex gap-1">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openEditCard(card);
-                                        }}
-                                      >
-                                        <Edit className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 text-destructive"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteCard(card.id);
-                                        }}
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </CardHeader>
-                                {card.description && (
-                                  <CardContent className="pt-0">
-                                    <p className="text-xs text-muted-foreground">
-                                      {card.description}
-                                    </p>
-                                  </CardContent>
-                                )}
-                                <CardContent className="pt-0">
-                                  <div className="text-xs text-muted-foreground">
-                                    Por {card.createdByName}
-                                  </div>
-                                </CardContent>
-                              </Card>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Novo Card
+                              </Button>
                             )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </Droppable>
-                </div>
-              );
-            })}
+                      
+                      <Droppable droppableId={status}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`min-h-[200px] space-y-3 p-4 rounded-lg border-2 border-dashed transition-colors ${
+                              snapshot.isDraggingOver 
+                                ? colors.dragOver
+                                : colors.border
+                            }`}
+                          >
+                            {boardCards.map((card, index) => (
+                              <Draggable key={card.id} draggableId={card.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <Card
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`cursor-move transition-shadow ${
+                                      snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
+                                    }`}
+                                  >
+                                    <CardHeader className="pb-2">
+                                      <div className="flex items-start justify-between">
+                                        <CardTitle className="text-sm font-medium">
+                                          {card.title}
+                                        </CardTitle>
+                                        <div className="flex gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              openEditCard(card);
+                                            }}
+                                          >
+                                            <Edit className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 text-destructive"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteCard(card.id);
+                                            }}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CardHeader>
+                                    {card.description && (
+                                      <CardContent className="pt-0">
+                                        <p className="text-xs text-muted-foreground">
+                                          {card.description}
+                                        </p>
+                                      </CardContent>
+                                    )}
+                                    <CardContent className="pt-0">
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <User className="h-3 w-3" />
+                                        <span>{card.createdByName}</span>
+                                        <Clock className="h-3 w-3 ml-2" />
+                                        <span>{new Date(card.createdAt).toLocaleDateString('pt-BR')}</span>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  );
+                })}
+              </div>
+            </DragDropContext>
           </div>
-        </DragDropContext>
+
+          {/* Activity Sidebar */}
+          <ActivitySidebar projectId={projectId!} />
+        </div>
 
         {/* Create Card Dialog */}
         <Dialog open={isCreateCardOpen} onOpenChange={setIsCreateCardOpen}>
