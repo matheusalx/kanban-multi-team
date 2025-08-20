@@ -290,9 +290,9 @@ export function ProjectPage() {
 
         <div className="flex gap-6">
           {/* Kanban Boards */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <DragDropContext onDragEnd={handleDragEnd}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {boards?.boards.map((board) => {
                   const status = board.name === 'A Fazer' ? 'todo' : 
                                board.name === 'Em Andamento' ? 'in-progress' : 'done';
@@ -301,8 +301,8 @@ export function ProjectPage() {
                   const colors = getBoardColors(board.name);
 
                   return (
-                    <div key={board.id} className="space-y-4">
-                      <div className={`p-4 rounded-lg border ${colors.header}`}>
+                    <div key={board.id} className="flex flex-col min-h-0">
+                      <div className={`p-4 rounded-lg border ${colors.header} mb-4`}>
                         <div className="flex items-center justify-between">
                           <h2 className={`text-lg font-semibold ${colors.title}`}>{board.name}</h2>
                           <div className="flex items-center gap-2">
@@ -314,7 +314,7 @@ export function ProjectPage() {
                                 className="h-8"
                               >
                                 <Plus className="h-4 w-4 mr-1" />
-                                Novo Card
+                                Novo
                               </Button>
                             )}
                           </div>
@@ -326,7 +326,7 @@ export function ProjectPage() {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`min-h-[200px] space-y-3 p-4 rounded-lg border-2 border-dashed transition-colors ${
+                            className={`flex-1 min-h-[400px] space-y-3 p-4 rounded-lg border-2 border-dashed transition-colors ${
                               snapshot.isDraggingOver 
                                 ? colors.dragOver
                                 : colors.border
@@ -345,10 +345,10 @@ export function ProjectPage() {
                                   >
                                     <CardHeader className="pb-2">
                                       <div className="flex items-start justify-between">
-                                        <CardTitle className="text-sm font-medium">
+                                        <CardTitle className="text-sm font-medium pr-2">
                                           {card.title}
                                         </CardTitle>
-                                        <div className="flex gap-1">
+                                        <div className="flex gap-1 flex-shrink-0">
                                           <Button
                                             variant="ghost"
                                             size="icon"
@@ -375,7 +375,7 @@ export function ProjectPage() {
                                       </div>
                                     </CardHeader>
                                     {card.description && (
-                                      <CardContent className="pt-0">
+                                      <CardContent className="pt-0 pb-2">
                                         <p className="text-xs text-muted-foreground">
                                           {card.description}
                                         </p>
@@ -384,9 +384,9 @@ export function ProjectPage() {
                                     <CardContent className="pt-0">
                                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <User className="h-3 w-3" />
-                                        <span>{card.createdByName}</span>
-                                        <Clock className="h-3 w-3 ml-2" />
-                                        <span>{new Date(card.createdAt).toLocaleDateString('pt-BR')}</span>
+                                        <span className="truncate">{card.createdByName}</span>
+                                        <Clock className="h-3 w-3 ml-auto" />
+                                        <span className="whitespace-nowrap">{new Date(card.createdAt).toLocaleDateString('pt-BR')}</span>
                                       </div>
                                     </CardContent>
                                   </Card>
@@ -404,8 +404,10 @@ export function ProjectPage() {
             </DragDropContext>
           </div>
 
-          {/* Activity Sidebar */}
-          <ActivitySidebar projectId={projectId!} />
+          {/* Activity Sidebar - Hidden on smaller screens */}
+          <div className="hidden xl:block flex-shrink-0">
+            <ActivitySidebar projectId={projectId!} />
+          </div>
         </div>
 
         {/* Create Card Dialog */}
